@@ -18,11 +18,14 @@ def configure_logging():
     stream_handler = logging.StreamHandler(stream=sys.stdout)
     stream_handler.setLevel(logging.INFO)
 
+
     logs_output_path = os.path.join(
             BASE_DIR.parent,
             'logs',
             f'{logger.name}_{now}'
         )
+
+    os.makedirs(logs_output_path, exist_ok=True)
 
     rotating_file_handler = RotatingFileHandler(
         logs_output_path,
