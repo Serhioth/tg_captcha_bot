@@ -85,40 +85,44 @@ async def generate_banned_users_keyboard(page=1):
         )
     )
 
-    if page > 1 and page < number_of_pages:
-        previous_page_button
-        first_page_button
-        next_page_button
-        last_page_button
-        keyboard.adjust(4)
-
-    elif page > 1:
-        previous_page_button
-        first_page_button
-        keyboard.adjust(2)
-
-    elif page < number_of_pages:
-        next_page_button
-        last_page_button
-
-        keyboard.adjust(2)
-
-    keyboard.button(
+    page_counter = keyboard.button(
         text=f'{page}/{number_of_pages}',
         callback_data=PaginationCallback(
             description='page_counter',
             value='page_counter'
         )
     )
-    keyboard.adjust(1)
 
-    keyboard.button(
+    cancel_button = keyboard.button(
         text='Отмена',
         callback_data=PaginationCallback(
             description='cancel',
             value='cancel'
         )
     )
-    keyboard.adjust(1)
+
+    if page == 1:
+        keyboard.row(
+            page_counter,
+            cancel_button
+        )
+
+    elif page == number_of_pages:
+        keyboard.row(
+            previous_page_button,
+            first_page_button,
+            page_counter,
+            cancel_button
+        )
+
+    elif page > 1 and page < number_of_pages:
+        keyboard.row(
+            previous_page_button,
+            first_page_button,
+            page_counter,
+            next_page_button,
+            last_page_button,
+            cancel_button
+        )
 
     return keyboard.as_markup()
