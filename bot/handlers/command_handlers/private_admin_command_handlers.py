@@ -9,7 +9,7 @@ from bot.utils.handlers_utils import protect_username
 from bot.keyboards.private_command_handlers_keyboards import (
     generate_unban_options_keyboard
 )
-from bot.translations.private_command_messages import (
+from bot.translations.ru.private_command_messages import (
     HELP_MESSAGE,
     START_MESSAGE,
 )

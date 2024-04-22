@@ -25,7 +25,12 @@ def configure_logging():
             f'{logger.name}_{now}'
         )
 
-    os.makedirs(logs_output_path, exist_ok=True)
+    os.makedirs(
+        os.path.join(
+            BASE_DIR.parent,
+            'logs'
+        ), exist_ok=True
+    )
 
     rotating_file_handler = RotatingFileHandler(
         logs_output_path,
