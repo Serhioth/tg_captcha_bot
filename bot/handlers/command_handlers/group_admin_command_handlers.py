@@ -15,9 +15,7 @@ from bot.filters import (
     IsGroupAdminFilter
 )
 from bot.utils.handlers_utils import (
-    get_banned_users_collection,
-    protect_username,
-    save_banned_user
+    protect_username
 )
 from bot.translations.ru.group_commands_messages import (
     BAN_USER_COMMAND_MESSAGE,
@@ -40,13 +38,6 @@ async def ban_user(message: types.Message):
         user_full_name = message.reply_to_message.from_user.full_name
         user_id = message.reply_to_message.from_user.id
 
-        banned_users_collection = await get_banned_users_collection()
-
-        await save_banned_user(
-            user_id=user_id,
-            user_full_name=user_full_name,
-            collection=banned_users_collection
-        )
         await message.chat.ban(user_id=user_id)
 
         await message.reply_to_message.answer(

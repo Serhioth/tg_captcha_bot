@@ -17,16 +17,3 @@ services:
     restart: always
     depends_on:
       - bot
-
-  mongo:
-    image: mongo
-    restart: always
-    volumes:
-      - mongo_data:/data/db
-    env_file:
-      - .env
-    depends_on:
-      - bot
-
-volumes:
-  mongo_data:

@@ -14,10 +14,8 @@ GROUP_ADMINSTRATOR_IDS = [
     int(admin_id) for admin_id in os.getenv(
         'GROUP_ADMINSTRATOR_IDS').split(',')
 ]
-MONGODB_URL = os.getenv('MONGODB_URL')
 ANSWER_TIMEOUT = 30
 RESTRICT_TIMEOUT = 60
-USERS_PER_PAGE = 10
 
 RESTRICTED_PERMISSIONS = ChatPermissions(
     can_send_messages=False,

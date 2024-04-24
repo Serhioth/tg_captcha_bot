@@ -14,11 +14,7 @@ from bot.core.constants import (
 from bot.handlers import (
     event_router,
     group_admin_command_router,
-    private_admin_callback_router,
-    private_admin_command_router,
-    private_admin_messages_router
 )
-from bot.handlers.document_handler import docs_router
 
 
 DATETIME_FORMAT = '%Y/%m/%d %H:%M:%S'
@@ -49,12 +45,8 @@ async def lifespan(app: FastAPI):
                          "chat_member"]
     )
     dp.include_routers(
-        docs_router,
         event_router,
-        group_admin_command_router,
-        private_admin_callback_router,
-        private_admin_command_router,
-        private_admin_messages_router
+        group_admin_command_router
     )
     logger.info(f'Диспетчер запущен в {now}.')
 

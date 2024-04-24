@@ -1,10 +1,8 @@
 from aiogram import Bot, html, types
 from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.context import FSMContext
-from motor.core import AgnosticCollection
 
 from bot.core.configure_logging import logger
-from bot.core.db_config import DatabaseManager
 
 
 def protect_username(full_name: str):
@@ -26,37 +24,6 @@ async def answer_cancelled(
     await message.answer(
         text=text
     )
-
-
-async def get_banned_users_collection():
-    """
-    Функция для соединения с бд и получения коллекции забаненных пользователей.
-    """
-
-    db_manager = DatabaseManager()
-    db = await db_manager.get_db()
-    collection = db.banned_users
-
-    return collection
-
-
-async def save_banned_user(user_id: int,
-                           user_full_name: str,
-                           collection: AgnosticCollection) -> None:
-    """
-    Функция для добавления пользователя в коллекцию banned_users.
-    Необходима для последующего разбана.
-    """
-
-    banned_user_data = {
-        '_id': user_id,
-        'full_name': user_full_name,
-    }
-
-    saved_data = await collection.insert_one(banned_user_data)
-
-    logger.info(f'Пользователь {user_id} заблокирован.')
-    logger.info(f'Данные сохранены: {repr(saved_data.inserted_id)}')
 
 
 async def check_user_id(

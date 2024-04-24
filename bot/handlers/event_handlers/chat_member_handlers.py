@@ -7,6 +7,7 @@ from aiogram.filters import (
     LEAVE_TRANSITION,
 )
 from aiogram.fsm.context import FSMContext
+from aiogram.handlers.chat_member import ChatMemberHandler
 
 from bot.callbacks.callback_fabs import UserJoinCallback
 from bot.core.configure_logging import logger
@@ -20,11 +21,10 @@ from bot.filters.is_allowed_group_filter import (
     IsAllowedGroupEventFilter
 )
 from bot.FSM_states.user_join_states import UserJoinStates
+from bot.utils.async_timer import AsyncTimer
 from bot.utils.handlers_utils import (
     check_user_id,
-    get_banned_users_collection,
     protect_username,
-    save_banned_user,
     ban_user
 )
 from bot.translations.ru.user_join_messages import (
@@ -37,21 +37,21 @@ from bot.translations.ru.user_join_messages import (
 from bot.keyboards.user_join_handlers_keyboards.captcha_keyboard import (
     generate_captcha_keyboard
 )
+from bot.utils.async_timer import AsyncTimer
 
 
 router = Router()
 
 router.chat_member.filter(IsAllowedGroupEventFilter())
 
-TIMER = None
-
 
 @router.chat_member(
     ChatMemberUpdatedFilter(member_status_changed=JOIN_TRANSITION),
 )
-async def on_user_join(event: types.ChatMemberUpdated,
-                       bot: Bot,
-                       state: FSMContext):
+async def on_user_join(
+    event: types.ChatMemberUpdated,
+    state: FSMContext,
+):
     """Функция для обработки запроса на вступление в чат."""
 
     await state.set_state(UserJoinStates.waiting_for_answer)
@@ -77,10 +77,6 @@ async def on_user_join(event: types.ChatMemberUpdated,
         'подал заявку на вступление в группу.'
     )
 
-    global TIMER
-
-    TIMER = asyncio.create_task(asyncio.sleep(ANSWER_TIMEOUT))
-
     keyboard, true_button = generate_captcha_keyboard()
 
     message = await event.answer(
@@ -98,11 +94,7 @@ async def on_user_join(event: types.ChatMemberUpdated,
         use_independent_chat_permissions=True
     )
 
-    try:
-        await TIMER
-
-    except asyncio.CancelledError:
-        return
+    await asyncio.sleep(ANSWER_TIMEOUT)
 
     current_state = await state.get_state()
 
@@ -127,37 +119,11 @@ async def on_user_join(event: types.ChatMemberUpdated,
         await message.delete()
 
         await ban_user(
-            bot=bot,
+            bot=event.bot,
             chat_id=chat_id,
             user_id=user_id
         )
         return
-
-
-@router.chat_member(
-    ChatMemberUpdatedFilter(member_status_changed=LEAVE_TRANSITION)
-)
-async def on_user_leave(event: types.ChatMemberUpdated):
-
-    if event.new_chat_member.status != 'kicked':
-        return None
-
-    user_full_name = protect_username(
-        event.new_chat_member.user.full_name
-    )
-
-    banned_users_collection = await get_banned_users_collection()
-
-    await save_banned_user(
-        user_id=event.new_chat_member.user.id,
-        user_full_name=user_full_name,
-        collection=banned_users_collection
-    )
-
-    await event.answer(
-        text=f'Пользователь {user_full_name} забанен.'
-    )
-    return
 
 
 @router.callback_query(
@@ -170,9 +136,6 @@ async def process_correct_answer(
     state: FSMContext,
 ) -> None:
     """Хэндлер для обработки ответа пользователя."""
-
-    if TIMER is not None:
-        TIMER.cancel()
 
     await state.set_state(UserJoinStates.process_correct_answer)
 
@@ -217,9 +180,6 @@ async def process_incorrect_answer(
     state: FSMContext,
 ) -> None:
     """Хэндлер для обработки неверного ответа пользователя."""
-
-    if TIMER is not None:
-        TIMER.cancel()
 
     await state.set_state(UserJoinStates.process_incorrect_answer)
 

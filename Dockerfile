@@ -1,4 +1,4 @@
-FROM python:3.11
+FROM python:3.11-slim
 # Specify the working directory 
 WORKDIR /app
 # Copying requirements.txt to container
