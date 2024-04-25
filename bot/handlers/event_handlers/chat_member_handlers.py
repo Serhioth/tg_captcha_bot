@@ -63,8 +63,7 @@ async def on_user_join(
     logger.info(f'Статус пользователя {event.new_chat_member.status}')
 
     await state.update_data(
-        target_user_id=user_id,
-        target_user_full_name=user_full_name
+        target_user_id=user_id
     )
 
     logger.info(
@@ -112,7 +111,7 @@ async def process_correct_answer(
 
     user_full_name = protect_username(callback.from_user.full_name)
 
-    target_user_id = await state.get_data['target_user_id']
+    target_user_id = await state.get_data('target_user_id')
     current_user_id = callback.from_user.id
 
     if target_user_id != current_user_id:
@@ -162,7 +161,7 @@ async def process_incorrect_answer(
         callback.from_user.full_name
     )
 
-    target_user_id = await state.get_data['target_user_id']
+    target_user_id = await state.get_data('target_user_id')
     current_user_id = callback.from_user.id
 
     if target_user_id != current_user_id:
