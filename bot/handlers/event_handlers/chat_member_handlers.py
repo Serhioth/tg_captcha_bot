@@ -111,7 +111,8 @@ async def process_correct_answer(
 
     user_full_name = protect_username(callback.from_user.full_name)
 
-    target_user_id = await state.get_data('target_user_id')
+    state_data = await state.get_data()
+    target_user_id = state_data['target_user_id']
     current_user_id = callback.from_user.id
 
     if target_user_id != current_user_id:
@@ -161,7 +162,8 @@ async def process_incorrect_answer(
         callback.from_user.full_name
     )
 
-    target_user_id = await state.get_data('target_user_id')
+    state_data = await state.get_data()
+    target_user_id = state_data['target_user_id']
     current_user_id = callback.from_user.id
 
     if target_user_id != current_user_id:
