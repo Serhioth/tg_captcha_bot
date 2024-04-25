@@ -4,7 +4,6 @@ from aiogram import Bot, F, types, Router
 from aiogram.filters import (
     ChatMemberUpdatedFilter,
     JOIN_TRANSITION,
-    LEAVE_TRANSITION,
 )
 from aiogram.fsm.context import FSMContext
 from aiogram.handlers.chat_member import ChatMemberHandler
@@ -94,36 +93,12 @@ async def on_user_join(
         use_independent_chat_permissions=True
     )
 
-    await asyncio.sleep(ANSWER_TIMEOUT)
-
-    current_state = await state.get_state()
-
-    if current_state == UserJoinStates.waiting_for_answer:
-
-        user_full_name = protect_username(
-            event.new_chat_member.user.full_name
+    return asyncio.create_task(
+        process_user_timeout(
+            state=state,
+            message=message,
+            event=event)
         )
-        user_id = event.new_chat_member.user.id
-        chat_id = event.chat.id
-
-        await event.answer(
-            text=USER_TIMEOUT_MESSAGE.format(
-                username=user_full_name
-            )
-        )
-
-        logger.info(
-            f'Заявка пользователя {user_full_name} завершена по таймауту.'
-        )
-
-        await message.delete()
-
-        await ban_user(
-            bot=event.bot,
-            chat_id=chat_id,
-            user_id=user_id
-        )
-        return
 
 
 @router.callback_query(
@@ -215,3 +190,43 @@ async def process_incorrect_answer(
         user_id=callback.from_user.id
     )
     return
+
+
+async def process_user_timeout(
+    state: FSMContext,
+    event: types.ChatMemberUpdated,
+    message: types.Message,
+):
+    """Функция для забанивания пользователя по таймауту. """
+
+    await asyncio.sleep(ANSWER_TIMEOUT)
+
+    current_state = await state.get_state()
+
+    if current_state == UserJoinStates.waiting_for_answer:
+
+        user_full_name = protect_username(
+            event.new_chat_member.user.full_name
+        )
+        user_id = event.new_chat_member.user.id
+        chat_id = event.chat.id
+
+        await event.answer(
+            text=USER_TIMEOUT_MESSAGE.format(
+                username=user_full_name
+            )
+        )
+
+        logger.info(
+            f'Заявка пользователя {user_full_name} завершена по таймауту.'
+        )
+
+        await message.delete()
+
+        await ban_user(
+            bot=event.bot,
+            chat_id=chat_id,
+            user_id=user_id
+        )
+    else:
+        return
