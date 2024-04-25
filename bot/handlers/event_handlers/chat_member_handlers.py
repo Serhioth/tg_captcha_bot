@@ -119,7 +119,8 @@ async def process_correct_answer(
         await callback.answer(
             text=NON_TARGET_USER_MESSAGE.format(
                 username=user_full_name
-            )
+            ),
+            show_alert=True
         )
         return None
 
@@ -168,7 +169,8 @@ async def process_incorrect_answer(
         await callback.answer(
             text=NON_TARGET_USER_MESSAGE.format(
                 username=user_full_name
-            )
+            ),
+            show_alert=True
         )
         return None
 
