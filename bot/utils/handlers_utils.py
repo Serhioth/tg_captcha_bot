@@ -26,33 +26,6 @@ async def answer_cancelled(
     )
 
 
-async def check_user_id(
-    callback: types.CallbackQuery,
-    state: FSMContext,
-    alert_message: str
-) -> None:
-    """
-    Функция для проверки идентификатора ответившего пользователя.
-    """
-
-    state_data = await state.get_data()
-    try:
-        target_user_id = state_data['target_user_id']
-    except KeyError:
-        logger.error('Не найден идентификатор целевого пользователя.')
-        await state.clear()
-
-        return None
-
-    if callback.from_user.id != target_user_id:
-        await callback.answer(
-            text=alert_message,
-            show_alert=True
-        )
-        await state.clear()
-        return None
-
-
 async def ban_user(
     bot: Bot,
     chat_id: int,

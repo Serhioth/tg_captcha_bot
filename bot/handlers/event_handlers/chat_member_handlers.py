@@ -20,9 +20,7 @@ from bot.filters.is_allowed_group_filter import (
     IsAllowedGroupEventFilter
 )
 from bot.FSM_states.user_join_states import UserJoinStates
-from bot.utils.async_timer import AsyncTimer
 from bot.utils.handlers_utils import (
-    check_user_id,
     protect_username,
     ban_user
 )
@@ -36,8 +34,6 @@ from bot.translations.ru.user_join_messages import (
 from bot.keyboards.user_join_handlers_keyboards.captcha_keyboard import (
     generate_captcha_keyboard
 )
-from bot.utils.async_timer import AsyncTimer
-
 
 router = Router()
 
@@ -116,13 +112,16 @@ async def process_correct_answer(
 
     user_full_name = protect_username(callback.from_user.full_name)
 
-    await check_user_id(
-        callback=callback,
-        state=state,
-        alert_message=NON_TARGET_USER_MESSAGE.format(
-            username=user_full_name
+    target_user_id = await state.get_data['target_user_id']
+    current_user_id = callback.from_user.id
+
+    if target_user_id != current_user_id:
+        await callback.answer(
+            text=NON_TARGET_USER_MESSAGE.format(
+                username=user_full_name
+            )
         )
-    )
+        return None
 
     await callback.message.chat.restrict(
         user_id=callback.from_user.id,
@@ -162,15 +161,16 @@ async def process_incorrect_answer(
         callback.from_user.full_name
     )
 
-    await check_user_id(
-        callback=callback,
-        state=state,
-        alert_message=NON_TARGET_USER_MESSAGE.format(
-            username=protect_username(
-                user_full_name
+    target_user_id = await state.get_data['target_user_id']
+    current_user_id = callback.from_user.id
+
+    if target_user_id != current_user_id:
+        await callback.answer(
+            text=NON_TARGET_USER_MESSAGE.format(
+                username=user_full_name
             )
         )
-    )
+        return None
 
     logger.info(
         f'Заявка пользователя {user_full_name} отклонена.'
