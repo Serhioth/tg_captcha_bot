@@ -43,7 +43,7 @@ async def lifespan(app: FastAPI):
     )
     dp.include_routers(
         event_router,
-        group_admin_command_router
+        group_admin_command_router,
     )
     logger.info(f'Диспетчер запущен в {now}.')
 

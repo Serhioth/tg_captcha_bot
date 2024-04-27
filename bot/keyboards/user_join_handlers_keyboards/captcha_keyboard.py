@@ -36,5 +36,7 @@ def generate_captcha_keyboard(
             )
         )
 
+    print(hash_)
+
     keyboard.adjust(2, repeat=True)
     return keyboard, true_button

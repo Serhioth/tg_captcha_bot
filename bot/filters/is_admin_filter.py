@@ -9,4 +9,6 @@ class IsGroupAdminFilter(BaseFilter):
     """
 
     async def __call__(self, message: Message) -> bool:
-        return message.from_user.id in message.chat.get_administrators()
+        admins = await message.chat.get_administrators()
+        admins_id = [admin.user.id for admin in admins]
+        return message.from_user.id in admins_id

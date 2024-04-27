@@ -24,7 +24,7 @@ from bot.translations.ru.user_join_messages import (
 )
 from bot.utils.handlers_utils import (
     protect_username,
-    ban_user
+    ban_user,
 )
 from bot.utils.hash import generate_hash
 
@@ -97,6 +97,7 @@ async def on_user_join(
 )
 async def process_user_answer(
     callback: types.CallbackQuery,
+    callback_data: UserJoinCallback,
     state: FSMContext
 ) -> None:
     """Функция для обработки ответа пользователя."""
@@ -120,7 +121,7 @@ async def process_user_answer(
         target_user_id
     )
 
-    if callback.data == correct_answer:
+    if callback_data.value == correct_answer:
         await callback.message.chat.restrict(
             user_id=callback.from_user.id,
             permissions=settings.unrestricted_permissions,
@@ -142,24 +143,34 @@ async def process_user_answer(
         return
 
     else:
-        logger.info(
-            f'Заявка пользователя {user_full_name} отклонена.'
-        )
-        await callback.message.answer(
-            text=USER_INCORRECT_ANSWER_MESSAGE.format(
-                username=user_full_name
+        try_counter = 0
+        if try_counter < 5:
+            try_counter += 1
+            user_id = callback.from_user.id
+            await callback.bot.kick_chat_member(
+                chat_id=callback.message.chat.id,
+                user_id=user_id
             )
-        )
+            return
+        else:
+            logger.info(
+                f'Заявка пользователя {user_full_name} отклонена.'
+            )
+            await callback.message.answer(
+                text=USER_INCORRECT_ANSWER_MESSAGE.format(
+                    username=user_full_name
+                )
+            )
 
-        await callback.message.delete()
+            await callback.message.delete()
 
-        await ban_user(
-            bot=callback.bot,
-            state=state,
-            chat_id=callback.message.chat.id,
-            user_id=callback.from_user.id
-        )
-        return
+            await ban_user(
+                bot=callback.bot,
+                state=state,
+                chat_id=callback.message.chat.id,
+                user_id=callback.from_user.id
+            )
+            return
 
 
 async def process_user_timeout(

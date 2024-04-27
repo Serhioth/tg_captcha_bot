@@ -1,3 +1,4 @@
+import base64
 import hashlib
 
 
@@ -11,6 +12,7 @@ def generate_hash(
     """
 
     combined_string = f"{tg_id}{chat_id}"
-    hashed_value = hashlib.sha256(combined_string.encode()).hexdigest()
+    hashed_value = hashlib.sha256(combined_string.encode()).digest()
+    short_hash = base64.b64encode(hashed_value).decode()[:10]
 
-    return hashed_value
+    return short_hash
