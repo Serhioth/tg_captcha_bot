@@ -5,15 +5,8 @@ from aiogram.filters import Command
 from aiogram.filters.command import CommandObject
 from aiogram.exceptions import TelegramAPIError
 
-from bot.core.constants import (
-    RESTRICT_TIMEOUT,
-    RESTRICTED_PERMISSIONS
-)
 from bot.core.configure_logging import logger
-from bot.filters import (
-    IsAllowedGroupMessageFilter,
-    IsGroupAdminFilter
-)
+from bot.filters import IsGroupAdminFilter
 from bot.utils.handlers_utils import (
     protect_username
 )
@@ -22,13 +15,11 @@ from bot.translations.ru.group_commands_messages import (
     RESTRICT_USER_COMMAND_MESSAGE,
     RESTRICT_WRONG_ARGS_MESSAGE
 )
+from bot.core.config import settings
 
 
 router = Router()
-router.message.filter(
-    IsAllowedGroupMessageFilter(),
-    IsGroupAdminFilter()
-)
+router.message.filter(IsGroupAdminFilter())
 
 
 @router.message(Command('ban'), F.reply_to_message)
@@ -66,16 +57,16 @@ async def restrict_user(message: types.Message,
     utc_now = time.time()
 
     if command.args is None:
-        restrict_time = RESTRICT_TIMEOUT + utc_now
-        time_of_restriction = RESTRICT_TIMEOUT
+        restrict_time = settings.captcha_answer_timeout + utc_now
+        time_of_restriction = settings.captcha_answer_timeout
     else:
         try:
             restrict_time = int(command.args) + utc_now
             time_of_restriction = int(command.args)
 
         except ValueError:
-            restrict_time = RESTRICT_TIMEOUT + utc_now
-            time_of_restriction = RESTRICT_TIMEOUT
+            restrict_time = settings.captcha_answer_timeout + utc_now
+            time_of_restriction = settings.captcha_answer_timeout
 
             await message.answer(
                 text=RESTRICT_WRONG_ARGS_MESSAGE.format(
@@ -88,10 +79,12 @@ async def restrict_user(message: types.Message,
                         'ввёл неверные аргументы при попытке '
                         f'ограничить пользователя {user_full_name}')
     try:
-        await message.chat.restrict(user_id=user_id,
-                                    permissions=RESTRICTED_PERMISSIONS,
-                                    until_date=restrict_time,
-                                    use_independent_chat_permissions=True)
+        await message.chat.restrict(
+            user_id=user_id,
+            permissions=settings.restricted_permissions,
+            until_date=restrict_time,
+            use_independent_chat_permissions=True
+        )
 
         await message.reply_to_message.answer(
             text=RESTRICT_USER_COMMAND_MESSAGE.format(

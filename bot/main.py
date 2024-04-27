@@ -6,11 +6,8 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from fastapi import FastAPI
 import uvicorn
 
+from bot.core.config import settings
 from bot.core.configure_logging import logger
-from bot.core.constants import (
-    TELEGRAM_BOT_HOST,
-    TELEGRAM_BOT_TOKEN
-)
 from bot.handlers import (
     event_router,
     group_admin_command_router,
@@ -18,13 +15,13 @@ from bot.handlers import (
 
 
 DATETIME_FORMAT = '%Y/%m/%d %H:%M:%S'
-WEBHOOK_PATH = f'/bot/{TELEGRAM_BOT_TOKEN}'
-WEBHOOK_URL = f'{TELEGRAM_BOT_HOST}{WEBHOOK_PATH}'
+WEBHOOK_PATH = f'/bot/{settings.telegram_bot_token}'
+WEBHOOK_URL = f'{settings.telegram_bot_host}{WEBHOOK_PATH}'
 
 now = dt.now().strftime(DATETIME_FORMAT)
 
 bot = Bot(
-    token=TELEGRAM_BOT_TOKEN,
+    token=settings.telegram_bot_token,
     parse_mode='HTML'
 )
 dp = Dispatcher(storage=MemoryStorage())

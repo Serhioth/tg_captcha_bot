@@ -1,29 +1,20 @@
 import asyncio
 
-from aiogram import Bot, F, types, Router
+from aiogram import F, types, Router
 from aiogram.filters import (
     ChatMemberUpdatedFilter,
     JOIN_TRANSITION,
 )
 from aiogram.fsm.context import FSMContext
-from aiogram.handlers.chat_member import ChatMemberHandler
 
 from bot.callbacks.callback_fabs import UserJoinCallback
+from bot.core.config import settings
 from bot.core.configure_logging import logger
-from bot.core.constants import (
-    ANSWER_TIMEOUT,
-    GROUP_ADMINSTRATOR_IDS,
-    RESTRICTED_PERMISSIONS,
-    UNRESTRICTED_PERMISSIONS
-)
-from bot.filters.is_allowed_group_filter import (
-    IsAllowedGroupEventFilter
-)
 from bot.FSM_states.user_join_states import UserJoinStates
-from bot.utils.handlers_utils import (
-    protect_username,
-    ban_user
+from bot.keyboards.user_join_handlers_keyboards.captcha_keyboard import (
+    generate_captcha_keyboard
 )
+
 from bot.translations.ru.user_join_messages import (
     NON_TARGET_USER_MESSAGE,
     USER_JOIN_MESSAGE,
@@ -31,13 +22,14 @@ from bot.translations.ru.user_join_messages import (
     USER_CORRECT_ANSWER_MESSAGE,
     USER_INCORRECT_ANSWER_MESSAGE
 )
-from bot.keyboards.user_join_handlers_keyboards.captcha_keyboard import (
-    generate_captcha_keyboard
+from bot.utils.handlers_utils import (
+    protect_username,
+    ban_user
 )
+from bot.utils.hash import generate_hash
+
 
 router = Router()
-
-router.chat_member.filter(IsAllowedGroupEventFilter())
 
 
 @router.chat_member(
@@ -51,7 +43,7 @@ async def on_user_join(
 
     await state.set_state(UserJoinStates.waiting_for_answer)
 
-    if event.from_user.id in GROUP_ADMINSTRATOR_IDS:
+    if event.from_user.id in event.chat.get_administrators():
         return None
 
     if event.new_chat_member.status not in ('member', 'restricted'):
@@ -71,43 +63,43 @@ async def on_user_join(
         'подал заявку на вступление в группу.'
     )
 
-    keyboard, true_button = generate_captcha_keyboard()
+    keyboard, true_button = generate_captcha_keyboard(
+        chat_id=event.chat.id,
+        user_id=user_id
+    )
 
     message = await event.answer(
-            text=USER_JOIN_MESSAGE.format(
-                username=user_full_name,
-                symbol=true_button
-            ),
-            reply_markup=keyboard.as_markup(),
-            protect_content=True
+        text=USER_JOIN_MESSAGE.format(
+            username=user_full_name,
+            symbol=true_button
+        ),
+        reply_markup=keyboard.as_markup(),
+        protect_content=True
     )
 
     await event.chat.restrict(
         user_id=user_id,
-        permissions=RESTRICTED_PERMISSIONS,
-        use_independent_chat_permissions=True
+        permissions=settings.restricted_permissions,
+        use_independent_chat_permissions=True,
     )
 
     return asyncio.create_task(
         process_user_timeout(
             state=state,
             message=message,
-            event=event)
+            event=event,
         )
+    )
 
 
 @router.callback_query(
-    UserJoinCallback.filter(
-        F.value == 'correct'
-    )
+    UserJoinCallback.filter(F.description == 'captcha_answer'),
 )
-async def process_correct_answer(
+async def process_user_answer(
     callback: types.CallbackQuery,
-    state: FSMContext,
+    state: FSMContext
 ) -> None:
-    """Хэндлер для обработки ответа пользователя."""
-
-    await state.set_state(UserJoinStates.process_correct_answer)
+    """Функция для обработки ответа пользователя."""
 
     user_full_name = protect_username(callback.from_user.full_name)
 
@@ -123,74 +115,51 @@ async def process_correct_answer(
         )
         return None
 
-    await callback.message.chat.restrict(
-        user_id=callback.from_user.id,
-        permissions=UNRESTRICTED_PERMISSIONS,
-        use_independent_chat_permissions=True
+    correct_answer = generate_hash(
+        callback.message.chat.id,
+        target_user_id
     )
 
-    logger.info(
-        f'Заявка пользователя {user_full_name} одобрена.'
-    )
-    await callback.message.answer(
-        text=USER_CORRECT_ANSWER_MESSAGE.format(
-            username=user_full_name
+    if callback.data == correct_answer:
+        await callback.message.chat.restrict(
+            user_id=callback.from_user.id,
+            permissions=settings.unrestricted_permissions,
+            use_independent_chat_permissions=True
         )
-    )
 
-    await callback.message.delete()
-    await state.clear()
-
-    return
-
-
-@router.callback_query(
-    UserJoinCallback.filter(
-        F.value == 'incorrect'
-    )
-)
-async def process_incorrect_answer(
-    callback: types.CallbackQuery,
-    state: FSMContext,
-) -> None:
-    """Хэндлер для обработки неверного ответа пользователя."""
-
-    await state.set_state(UserJoinStates.process_incorrect_answer)
-
-    user_full_name = protect_username(
-        callback.from_user.full_name
-    )
-
-    state_data = await state.get_data()
-    target_user_id = state_data.get('target_user_id')
-
-    if target_user_id is None:
-        await callback.answer(
-            text=NON_TARGET_USER_MESSAGE.format(
+        logger.info(
+            f'Заявка пользователя {user_full_name} одобрена.'
+        )
+        await callback.message.answer(
+            text=USER_CORRECT_ANSWER_MESSAGE.format(
                 username=user_full_name
-            ),
-            show_alert=True
+            )
         )
-        return None
 
-    logger.info(
-        f'Заявка пользователя {user_full_name} отклонена.'
-    )
-    await callback.message.answer(
-        text=USER_INCORRECT_ANSWER_MESSAGE.format(
-            username=user_full_name
+        await callback.message.delete()
+        await state.clear()
+
+        return
+
+    else:
+        logger.info(
+            f'Заявка пользователя {user_full_name} отклонена.'
         )
-    )
+        await callback.message.answer(
+            text=USER_INCORRECT_ANSWER_MESSAGE.format(
+                username=user_full_name
+            )
+        )
 
-    await callback.message.delete()
+        await callback.message.delete()
 
-    await ban_user(
-        bot=callback.bot,
-        state=state,
-        chat_id=callback.message.chat.id,
-        user_id=callback.from_user.id
-    )
-    return
+        await ban_user(
+            bot=callback.bot,
+            state=state,
+            chat_id=callback.message.chat.id,
+            user_id=callback.from_user.id
+        )
+        return
 
 
 async def process_user_timeout(
@@ -200,7 +169,7 @@ async def process_user_timeout(
 ):
     """Функция для забанивания пользователя по таймауту. """
 
-    await asyncio.sleep(ANSWER_TIMEOUT)
+    await asyncio.sleep(settings.captcha_answer_timeout)
 
     current_state = await state.get_state()
 

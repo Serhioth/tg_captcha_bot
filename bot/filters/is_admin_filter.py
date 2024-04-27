@@ -1,8 +1,6 @@
 from aiogram.filters import BaseFilter
 from aiogram.types import Message
 
-from bot.core.constants import GROUP_ADMINSTRATOR_IDS
-
 
 class IsGroupAdminFilter(BaseFilter):
     """
@@ -11,4 +9,4 @@ class IsGroupAdminFilter(BaseFilter):
     """
 
     async def __call__(self, message: Message) -> bool:
-        return message.from_user.id in GROUP_ADMINSTRATOR_IDS
+        return message.from_user.id in message.chat.get_administrators()

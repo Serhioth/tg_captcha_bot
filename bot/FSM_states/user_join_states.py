@@ -6,6 +6,4 @@ class UserJoinStates(StatesGroup):
 
     waiting_for_answer = State()
     process_answer = State()
-    process_correct_answer = State()
-    process_incorrect_answer = State()
     process_timeout = State()
