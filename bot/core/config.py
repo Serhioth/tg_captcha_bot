@@ -1,13 +1,11 @@
-import os
-
 from aiogram.types import ChatPermissions
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
 
-    telegram_bot_token: str = os.getenv('TELEGRAM_BOT_TOKEN')
-    telegram_bot_host: str = os.getenv('TELEGRAM_BOT_HOST')
+    telegram_bot_token: str
+    telegram_bot_host: str
 
     captcha_answer_timeout: int = 30
     user_restrict_timeout: int = 60
