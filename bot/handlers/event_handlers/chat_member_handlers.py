@@ -6,6 +6,7 @@ from aiogram.filters import (
     JOIN_TRANSITION
 )
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramAPIError
 
 from bot.callbacks.callback_fabs import UserJoinCallback
 from bot.core.config import bot, settings
@@ -16,7 +17,6 @@ from bot.keyboards.user_join_handlers_keyboards.captcha_keyboard import (
 )
 from bot.middlewares.join_attempts import JoinAttemptsMiddleware
 from bot.translations.ru.user_join_messages import (
-    NON_TARGET_USER_MESSAGE,
     USER_JOIN_MESSAGE,
 )
 from bot.utils.handlers_utils import (
@@ -122,12 +122,6 @@ async def process_user_answer(
     true_button = state_data.get('true_button')
 
     if target_user_id != callback.from_user.id:
-        await callback.answer(
-            text=NON_TARGET_USER_MESSAGE.format(
-                username=user_full_name
-            ),
-            show_alert=True
-        )
         return None
 
     if callback_data.value == true_button.get('callback_data').value:
@@ -185,7 +179,10 @@ async def process_user_timeout(
             f'Заявка пользователя {user_full_name} завершена по таймауту.'
         )
 
-        await message.delete()
+        try:
+            await message.delete()
+        except TelegramAPIError:
+            pass
 
         await ban_user(
             bot=event.bot,
