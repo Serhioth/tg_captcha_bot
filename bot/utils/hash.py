@@ -1,18 +1,16 @@
+import random
+from string import ascii_letters, digits
 import base64
 import hashlib
 
 
-def generate_hash(
-    tg_id: int,
-    chat_id: int,
-) -> str:
-    """
-    Функция для генерации хэша из телеграм айди
-    пользователя и телеграм айди чата.
-    """
+def generate_hash() -> str:
+    """Функция для генерации случайного хэша."""
 
-    combined_string = f"{tg_id}{chat_id}"
-    hashed_value = hashlib.sha256(combined_string.encode()).digest()
+    random_sample = "".join(
+        random.sample(ascii_letters + digits, 10)
+    )
+    hashed_value = hashlib.sha256(random_sample.encode()).digest()
     short_hash = base64.b64encode(hashed_value).decode()[:10]
 
     return short_hash

@@ -1,30 +1,18 @@
 from contextlib import asynccontextmanager
 from datetime import datetime as dt
 
-from aiogram import Bot, Dispatcher, types
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram import types
 from fastapi import FastAPI
 import uvicorn
 
-from bot.core.config import settings
+from bot.core.config import bot, settings, webhook_path, webhook_url
 from bot.core.configure_logging import logger
-from bot.handlers import (
-    event_router,
-    group_admin_command_router,
-)
+from bot.handlers import chat_member_router
 
 
 DATETIME_FORMAT = '%Y/%m/%d %H:%M:%S'
-WEBHOOK_PATH = f'/bot/{settings.telegram_bot_token}'
-WEBHOOK_URL = f'{settings.telegram_bot_host}{WEBHOOK_PATH}'
 
 now = dt.now().strftime(DATETIME_FORMAT)
-
-bot = Bot(
-    token=settings.telegram_bot_token,
-    parse_mode='HTML'
-)
-dp = Dispatcher(storage=MemoryStorage())
 
 
 @asynccontextmanager
@@ -33,7 +21,7 @@ async def lifespan(app: FastAPI):
 
     logger.info(f'Бот запущен в {now}.')
     await bot.set_webhook(
-        url=WEBHOOK_URL,
+        url=webhook_url,
         drop_pending_updates=True,
         request_timeout=30,
         allowed_updates=["message",
@@ -41,9 +29,8 @@ async def lifespan(app: FastAPI):
                          "inline_query",
                          "chat_member"]
     )
-    dp.include_routers(
-        event_router,
-        group_admin_command_router,
+    settings.dp.include_routers(
+        chat_member_router,
     )
     logger.info(f'Диспетчер запущен в {now}.')
 
@@ -58,13 +45,13 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@app.post(path=WEBHOOK_PATH)
+@app.post(path=webhook_path)
 async def bot_webhook(update: dict):
     """Функция для приёма сообщений из Telegram."""
 
     telegram_update = types.Update(**update)
-    await dp.feed_update(bot=bot,
-                         update=telegram_update)
+    await settings.dp.feed_update(bot=bot,
+                                  update=telegram_update)
 
 
 if __name__ == '__main__':

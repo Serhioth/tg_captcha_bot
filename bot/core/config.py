@@ -1,3 +1,6 @@
+from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import ChatPermissions
 from pydantic_settings import BaseSettings
 
@@ -6,8 +9,13 @@ class Settings(BaseSettings):
 
     telegram_bot_token: str
     telegram_bot_host: str
+    dp: Dispatcher = Dispatcher(storage=MemoryStorage())
+    bot_drop_pending_updates: bool = 1
+    bot_request_timeout: int = 30
+    bot_parse_mode: str = 'html'
 
     captcha_answer_timeout: int = 30
+    max_captcha_attempts: int = 5
     user_restrict_timeout: int = 60
 
     restricted_permissions: ChatPermissions = ChatPermissions(
@@ -46,3 +54,13 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+bot: Bot = Bot(
+    token=settings.telegram_bot_token,
+    default=DefaultBotProperties(
+        parse_mode=settings.bot_parse_mode,
+    )
+)
+
+webhook_path = f'/bot/{settings.telegram_bot_token}'
+webhook_url = f'{settings.telegram_bot_host}{webhook_path}'

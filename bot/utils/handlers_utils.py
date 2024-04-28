@@ -1,8 +1,5 @@
 from aiogram import Bot, html, types
-from aiogram.exceptions import TelegramAPIError
 from aiogram.fsm.context import FSMContext
-
-from bot.core.configure_logging import logger
 
 
 def protect_username(full_name: str):
@@ -30,23 +27,32 @@ async def ban_user(
     bot: Bot,
     chat_id: int,
     user_id: int,
-    state: FSMContext = None
+    kick: bool = False,
+    state: FSMContext = None,
 ):
-    """Функция для забанивания пользователя."""
+    """
+    Функция для забанивания пользователя.
+    Если передан параметр kick=True, то польбзователь
+    будет разбанен с возможностью снова попробовать вступить в группу.
+    """
 
-    try:
+    if kick:
         await bot.ban_chat_member(
             chat_id=chat_id,
             user_id=user_id
         )
 
-    except TelegramAPIError as error:
-        logger.exception(
-            'Ошибка при бане пользователя.\n'
-            f'Ошибка: {error}'
+        await bot.unban_chat_member(
+            chat_id=chat_id,
+            user_id=user_id
+        )
+    else:
+        await bot.ban_chat_member(
+            chat_id=chat_id,
+            user_id=user_id
         )
 
-    if state:
-        await state.clear()
+        if state:
+            await state.clear()
 
-    return None
+        return None

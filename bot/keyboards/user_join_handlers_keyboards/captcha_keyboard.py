@@ -13,30 +13,28 @@ buttons_choices = ['🦑', '🐙', '🦕', '🦖', '🦎', '🐍',
                    '🐳', '🐬', '🐟', '🐠', '🐡', '🦀']
 
 
-def generate_captcha_keyboard(
-    chat_id: int,
-    user_id: int
-) -> tuple[InlineKeyboardBuilder, str]:
+def generate_captcha_keyboard() -> tuple[InlineKeyboardBuilder, dict]:
     """
     Конструктор клавиатуры с вариантами ответа.
     Возвращает верную кнопку и сгенерированную клавиатуру.
     """
     keyboard = InlineKeyboardBuilder()
-    buttons = random.sample(buttons_choices, 4)
+    choiced_buttons = random.sample(buttons_choices, 4)
+    buttons = []
+
+    for button in choiced_buttons:
+        buttons.append({
+            'text': button,
+            'callback_data': UserJoinCallback(
+                description='captcha_answer',
+                value=generate_hash()
+            )
+        })
+
     true_button = random.choice(buttons)
 
-    hash_ = generate_hash(chat_id, user_id)
-
     for button in buttons:
-        keyboard.button(
-            text=button,
-            callback_data=UserJoinCallback(
-                description='captcha_answer',
-                value=hash_ if button == true_button else 'incorrect'
-            )
-        )
-
-    print(hash_)
+        keyboard.button(**button)
 
     keyboard.adjust(2, repeat=True)
     return keyboard, true_button
