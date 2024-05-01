@@ -3,7 +3,9 @@ import asyncio
 from aiogram import enums, F, types, Router
 from aiogram.filters import (
     ChatMemberUpdatedFilter,
-    JOIN_TRANSITION
+    JOIN_TRANSITION,
+    KICKED,
+    IS_NOT_MEMBER
 )
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramAPIError
@@ -11,22 +13,22 @@ from aiogram.exceptions import TelegramAPIError
 from bot.callbacks.callback_fabs import UserJoinCallback
 from bot.core.config import bot, settings
 from bot.core.configure_logging import logger
+from bot.core.db import get_redis
 from bot.FSM_states.user_join_states import UserJoinStates
-from bot.keyboards.user_join_handlers_keyboards.captcha_keyboard import (
+from bot.keyboards.captcha_keyboards.emoji_captcha_keyboard import (
     generate_captcha_keyboard
 )
-from bot.middlewares.join_attempts import JoinAttemptsMiddleware
 from bot.translations.ru.user_join_messages import (
     USER_JOIN_MESSAGE,
 )
 from bot.utils.handlers_utils import (
     protect_username,
     ban_user,
+    check_user_attempts
 )
 
 
 router = Router()
-router.message.middleware(JoinAttemptsMiddleware())
 
 
 @router.chat_member(
@@ -37,6 +39,18 @@ async def on_user_join(
     state: FSMContext,
 ):
     """Функция для обработки запроса на вступление в чат."""
+
+    print(event.old_chat_member.status)
+
+    redis = await get_redis()
+
+    attempts_is_over = await check_user_attempts(
+        event=event,
+        redis=redis
+    )
+
+    if attempts_is_over:
+        return None
 
     await state.set_state(UserJoinStates.waiting_for_answer)
 
@@ -88,6 +102,27 @@ async def on_user_join(
             event=event,
         )
     )
+
+
+@router.chat_member(
+    ChatMemberUpdatedFilter(
+        member_status_changed=KICKED >> IS_NOT_MEMBER
+    ),
+)
+async def on_user_unban(
+    event: types.ChatMemberUpdated,
+):
+    """
+    Функция обнуляет счётчик попыток на вступление пользователя,
+    если он был разбанен администратором.
+    """
+
+    user_id = event.new_chat_member.user.id
+    redis = await get_redis()
+    user_attempts = await redis.get(user_id)
+
+    if user_attempts:
+        await redis.delete(user_id)
 
 
 @router.message(
@@ -181,14 +216,13 @@ async def process_user_timeout(
 
         try:
             await message.delete()
-        except TelegramAPIError:
-            pass
 
-        await ban_user(
-            bot=event.bot,
-            chat_id=chat_id,
-            user_id=user_id,
-            kick=True
-        )
-    else:
-        return
+            await ban_user(
+                bot=event.bot,
+                chat_id=chat_id,
+                user_id=user_id,
+                kick=True
+            )
+            return
+        except TelegramAPIError:
+            return None

@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     bot_request_timeout: int = 30
     bot_parse_mode: str = 'html'
 
+    redis_host: str
+    redis_port: int
+    redis_db: int
+    redis_password: str
+
     captcha_answer_timeout: int = 30
     max_captcha_attempts: int = 5
     user_restrict_timeout: int = 60
@@ -62,5 +67,9 @@ bot: Bot = Bot(
     )
 )
 
+redis_url = (
+    f'redis://:{settings.redis_password}@{settings.redis_host}:'
+    f'{settings.redis_port}/{settings.redis_db}'
+)
 webhook_path = f'/bot/{settings.telegram_bot_token}'
 webhook_url = f'{settings.telegram_bot_host}{webhook_path}'

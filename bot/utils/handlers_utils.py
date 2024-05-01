@@ -1,5 +1,8 @@
 from aiogram import Bot, html, types
 from aiogram.fsm.context import FSMContext
+from redis.asyncio import Redis
+
+from bot.core.config import settings
 
 
 def protect_username(full_name: str):
@@ -56,3 +59,31 @@ async def ban_user(
             await state.clear()
 
         return None
+
+
+async def check_user_attempts(
+    event: types.ChatMemberUpdated,
+    redis: Redis
+) -> bool:
+    """
+    Функция для проверки счётчика попыток входа пользователя.
+    Возвращает True если попытки кончились и пользователь забанен.
+    """
+
+    user_join_attempts = await redis.get(event.from_user.id)
+
+    if user_join_attempts:
+        user_join_attempts = int(user_join_attempts)
+        if user_join_attempts > settings.max_captcha_attempts:
+            await ban_user(
+                bot=event.bot,
+                chat_id=event.chat.id,
+                user_id=event.from_user.id,
+            )
+            return True
+        else:
+            await redis.incr(event.from_user.id)
+            return False
+    else:
+        await redis.set(event.from_user.id, 1)
+        return False
