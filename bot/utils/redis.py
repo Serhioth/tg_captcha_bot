@@ -11,11 +11,10 @@ async def increment_user_attempts_number(key: str) -> None:
     return await redis_client.incr(key)
 
 
-async def set_user_attempts_number(user_id: str, attempts_number: int = 1):
+async def set_user_attempts_number(user_id: str, attempts_number: int = 0):
     """
     Установить количество попыток пользователя,
-    по умолчанию устанавливает количество 1,
-    отображающее первую попытку входа.
+    по умолчанию устанавливает количество 0.
     """
     return await redis_client.set(user_id, attempts_number)
 

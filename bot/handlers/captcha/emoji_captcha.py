@@ -118,7 +118,6 @@ async def on_user_unban(
     если он был разбанен администратором.
     """
     user_id = event.new_chat_member.user.id
-
     await reset_user_attempts_number(user_id=user_id)
 
 
@@ -144,6 +143,8 @@ async def process_user_answer(
     state: FSMContext
 ) -> None:
     """Функция для обработки ответа пользователя."""
+
+    await state.set_state(UserJoinStates.process_answer)
 
     user_full_name = protect_username(callback.from_user.full_name)
 
@@ -197,6 +198,7 @@ async def process_user_timeout(
     await asyncio.sleep(settings.captcha_answer_timeout)
 
     current_state = await state.get_state()
+    print(current_state)
 
     if current_state == UserJoinStates.waiting_for_answer:
         user_full_name = protect_username(

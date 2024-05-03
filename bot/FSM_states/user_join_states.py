@@ -7,3 +7,4 @@ class UserJoinStates(StatesGroup):
     waiting_for_answer = State()
     process_answer = State()
     process_timeout = State()
+    attempts_limit_reached = State()
