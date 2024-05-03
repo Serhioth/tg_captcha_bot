@@ -13,7 +13,6 @@ from aiogram.exceptions import TelegramAPIError
 from bot.callbacks.callback_fabs import UserJoinCallback
 from bot.core.config import bot, settings
 from bot.core.configure_logging import logger
-from bot.core.db import get_redis
 from bot.FSM_states.user_join_states import UserJoinStates
 from bot.keyboards.captcha_keyboards.emoji_captcha_keyboard import (
     generate_captcha_keyboard
@@ -21,10 +20,11 @@ from bot.keyboards.captcha_keyboards.emoji_captcha_keyboard import (
 from bot.translations.ru.user_join_messages import (
     USER_JOIN_MESSAGE,
 )
-from bot.utils.handlers_utils import (
-    protect_username,
+from bot.utils.handlers import (
     ban_user,
-    check_user_attempts
+    check_user_attempts_is_over,
+    protect_username,
+    reset_user_attempts_number
 )
 
 
@@ -40,17 +40,16 @@ async def on_user_join(
 ):
     """Функция для обработки запроса на вступление в чат."""
 
-    print(event.old_chat_member.status)
-
-    redis = await get_redis()
-
-    attempts_is_over = await check_user_attempts(
-        event=event,
-        redis=redis
+    attempts_is_over = await check_user_attempts_is_over(
+        user_id=event.new_chat_member.user.id,
     )
 
     if attempts_is_over:
-        return None
+        await ban_user(
+            bot=event.bot,
+            chat_id=event.chat.id,
+            user_id=event.new_chat_member.user.id,
+        )
 
     await state.set_state(UserJoinStates.waiting_for_answer)
 
@@ -116,20 +115,14 @@ async def on_user_unban(
     Функция обнуляет счётчик попыток на вступление пользователя,
     если он был разбанен администратором.
     """
-
     user_id = event.new_chat_member.user.id
-    redis = await get_redis()
-    user_attempts = await redis.get(user_id)
 
-    if user_attempts:
-        await redis.delete(user_id)
+    await reset_user_attempts_number(user_id=user_id)
 
 
 @router.message(
     F.from_user.id == bot.id,
-    F.content_type.in_(
-        enums.ContentType.LEFT_CHAT_MEMBER,
-    ),
+    F.content_type == enums.ContentType.LEFT_CHAT_MEMBER,
 )
 async def remove_own_user_leave_message(message: types.Message):
     """

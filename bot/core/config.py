@@ -3,6 +3,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import ChatPermissions
 from pydantic_settings import BaseSettings
+from redis.asyncio import Redis as aioredis
 
 
 class Settings(BaseSettings):
@@ -71,5 +72,6 @@ redis_url = (
     f'redis://:{settings.redis_password}@{settings.redis_host}:'
     f'{settings.redis_port}/{settings.redis_db}'
 )
+redis_client: aioredis = aioredis.from_url(redis_url)
 webhook_path = f'/bot/{settings.telegram_bot_token}'
 webhook_url = f'{settings.telegram_bot_host}{webhook_path}'

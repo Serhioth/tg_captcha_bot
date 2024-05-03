@@ -1,8 +1,13 @@
 from aiogram import Bot, html, types
 from aiogram.fsm.context import FSMContext
-from redis.asyncio import Redis
 
 from bot.core.config import settings
+from bot.utils.redis import (
+    get_user_attempts_number,
+    increment_user_attempts_number,
+    set_user_attempts_number,
+    remove_user_attempts_record
+)
 
 
 def protect_username(full_name: str):
@@ -58,32 +63,30 @@ async def ban_user(
         if state:
             await state.clear()
 
-        return None
+
+async def reset_user_attempts_number(user_id: str):
+    """Функция для сброса счётчика попыток входа пользователя."""
+    user_attempts = await get_user_attempts_number(user_id)
+
+    if user_attempts:
+        await remove_user_attempts_record(user_id)
 
 
-async def check_user_attempts(
-    event: types.ChatMemberUpdated,
-    redis: Redis
-) -> bool:
+async def check_user_attempts_is_over(user_id: str,) -> bool:
     """
     Функция для проверки счётчика попыток входа пользователя.
-    Возвращает True если попытки кончились и пользователь забанен.
+    Возвращает True если попытки кончились.
     """
-
-    user_join_attempts = await redis.get(event.from_user.id)
+    user_join_attempts = await get_user_attempts_number(user_id)
 
     if user_join_attempts:
         user_join_attempts = int(user_join_attempts)
+
         if user_join_attempts > settings.max_captcha_attempts:
-            await ban_user(
-                bot=event.bot,
-                chat_id=event.chat.id,
-                user_id=event.from_user.id,
-            )
             return True
         else:
-            await redis.incr(event.from_user.id)
+            await increment_user_attempts_number(user_id)
             return False
     else:
-        await redis.set(event.from_user.id, 1)
+        await set_user_attempts_number(user_id)
         return False
