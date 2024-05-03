@@ -49,15 +49,17 @@ async def on_user_join(
             bot=event.bot,
             chat_id=event.chat.id,
             user_id=event.new_chat_member.user.id,
+            state=state
         )
+        return
 
     await state.set_state(UserJoinStates.waiting_for_answer)
 
     if event.from_user.id in event.chat.get_administrators():
-        return None
+        return
 
     if event.new_chat_member.status not in ('member', 'restricted'):
-        return None
+        return
 
     user_id = event.new_chat_member.user.id
     user_full_name = protect_username(event.new_chat_member.user.full_name)
@@ -150,7 +152,7 @@ async def process_user_answer(
     true_button = state_data.get('true_button')
 
     if target_user_id != callback.from_user.id:
-        return None
+        return
 
     if callback_data.value == true_button.get('callback_data').value:
         await callback.message.chat.restrict(
@@ -218,4 +220,4 @@ async def process_user_timeout(
             )
             return
         except TelegramAPIError:
-            return None
+            return
