@@ -1,22 +1,21 @@
 import asyncio
 
-from aiogram import enums, F, types, Router
+from aiogram import F, types, Router
 from aiogram.filters import (
     ChatMemberUpdatedFilter,
     JOIN_TRANSITION,
     KICKED,
-    IS_NOT_MEMBER
+    LEFT
 )
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramAPIError
 
-from bot.callbacks.callback_fabs import UserJoinCallback
-from bot.core.config import bot, settings
+from bot.callbacks.callback_fabs import CaptchaCallback
+from bot.core.config import settings
 from bot.core.configure_logging import logger
 from bot.FSM_states.user_join_states import UserJoinStates
-from bot.keyboards.captcha_keyboards.emoji_captcha_keyboard import (
-    generate_captcha_keyboard
-)
+from bot.keyboards.captcha.captcha_keyboard_fabs import CaptchaFactory
+from bot.keyboards.captcha.keyboards import ImageCaptcha
 from bot.translations.ru.user_join_messages import (
     USER_JOIN_MESSAGE,
 )
@@ -45,6 +44,7 @@ async def on_user_join(
     )
 
     if attempts_is_over:
+        await state.set_state(UserJoinStates.attempts_limit_reached)
         await ban_user(
             bot=event.bot,
             chat_id=event.chat.id,
@@ -75,20 +75,32 @@ async def on_user_join(
         'подал заявку на вступление в группу.'
     )
 
-    keyboard, true_button = generate_captcha_keyboard()
+    captcha = CaptchaFactory.get_captcha()
 
     await state.update_data(
-        true_button=true_button
+        captcha=captcha
     )
 
-    message = await event.answer(
-        text=USER_JOIN_MESSAGE.format(
-            username=user_full_name,
-            symbol=true_button.get('text')
-        ),
-        reply_markup=keyboard.as_markup(),
-        protect_content=True
-    )
+    # Здесь собственный метод ответа, так как возвращаем картинку.
+    if isinstance(captcha, ImageCaptcha):
+        message = await event.answer_photo(
+            photo=captcha.captcha,
+            caption=USER_JOIN_MESSAGE.format(
+                username=user_full_name,
+                captcha_message=captcha.create_captcha_message()
+            ),
+            reply_markup=captcha.generate_captcha_keyboard().as_markup(),
+            protect_content=True,
+        )
+    else:
+        message = await event.answer(
+            text=USER_JOIN_MESSAGE.format(
+                username=user_full_name,
+                captcha_message=captcha.create_captcha_message()
+            ),
+            reply_markup=captcha.generate_captcha_keyboard().as_markup(),
+            protect_content=True
+        )
 
     await event.chat.restrict(
         user_id=user_id,
@@ -107,39 +119,32 @@ async def on_user_join(
 
 @router.chat_member(
     ChatMemberUpdatedFilter(
-        member_status_changed=KICKED >> IS_NOT_MEMBER
+        member_status_changed=KICKED >> LEFT,
     ),
 )
-async def on_user_unban(
+async def on_user_left(
     event: types.ChatMemberUpdated,
 ):
     """
     Функция обнуляет счётчик попыток на вступление пользователя,
-    если он был разбанен администратором.
+    если он был разбанен администратором или вышел из чата по
+    собственной воле.
     """
     user_id = event.new_chat_member.user.id
-    await reset_user_attempts_number(user_id=user_id)
-
-
-@router.message(
-    F.from_user.id == bot.id,
-    F.content_type == enums.ContentType.LEFT_CHAT_MEMBER,
-)
-async def remove_own_user_leave_message(message: types.Message):
-    """
-    Функция для удаления сервисного сообщения о том,
-    что бот исключил пользователя из чата.
-    """
-
-    await message.delete()
+    attempts_is_over = await check_user_attempts_is_over(
+        user_id=user_id,
+    )
+    if attempts_is_over:
+        logger.info('Количество попыток входа пользователя сброшено.')
+        await reset_user_attempts_number(user_id=user_id)
 
 
 @router.callback_query(
-    UserJoinCallback.filter(F.description == 'captcha_answer'),
+    CaptchaCallback.filter(F.description == 'captcha_answer'),
 )
 async def process_user_answer(
     callback: types.CallbackQuery,
-    callback_data: UserJoinCallback,
+    callback_data: CaptchaCallback,
     state: FSMContext
 ) -> None:
     """Функция для обработки ответа пользователя."""
@@ -150,12 +155,13 @@ async def process_user_answer(
 
     state_data = await state.get_data()
     target_user_id = state_data.get('target_user_id')
-    true_button = state_data.get('true_button')
 
     if target_user_id != callback.from_user.id:
         return
 
-    if callback_data.value == true_button.get('callback_data').value:
+    captcha = state_data.get('captcha')
+
+    if captcha.validate_captcha(callback_data.value):
         await callback.message.chat.restrict(
             user_id=callback.from_user.id,
             permissions=settings.unrestricted_permissions,
@@ -165,6 +171,7 @@ async def process_user_answer(
         logger.info(
             f'Заявка пользователя {user_full_name} одобрена.'
         )
+        await reset_user_attempts_number(user_id=callback.from_user.id)
 
         await callback.message.delete()
         await state.clear()

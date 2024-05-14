@@ -20,6 +20,7 @@ magic-filter==1.0.12
 mccabe==0.7.0
 motor==3.3.2
 multidict==6.0.5
+pillow==10.3.0
 pycodestyle==2.11.1
 pydantic==2.5.3
 pydantic-settings==2.2.1

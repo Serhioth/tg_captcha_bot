@@ -7,7 +7,8 @@ import uvicorn
 
 from bot.core.config import bot, settings, webhook_path, webhook_url
 from bot.core.configure_logging import logger
-from bot.handlers.captcha import emoji_captcha_router
+from bot.handlers.chat_member import chat_member_router
+from bot.handlers.service import service_router
 
 
 DATETIME_FORMAT = '%Y/%m/%d %H:%M:%S'
@@ -30,7 +31,8 @@ async def lifespan(app: FastAPI):
                          "chat_member"]
     )
     settings.dp.include_routers(
-        emoji_captcha_router,
+        chat_member_router,
+        service_router,
     )
     logger.info(f'Диспетчер запущен в {now}.')
 

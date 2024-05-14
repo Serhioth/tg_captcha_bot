@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     captcha_answer_timeout: int = 30
     max_captcha_attempts: int = 5
     user_restrict_timeout: int = 60
+    captcha_string_length: int = 5
+    captcha_image_width: int = 200
+    captcha_image_height: int = 60
 
     restricted_permissions: ChatPermissions = ChatPermissions(
         can_send_messages=False,

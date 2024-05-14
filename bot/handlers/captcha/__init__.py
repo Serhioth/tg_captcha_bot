@@ -1,1 +1,0 @@
-from .emoji_captcha import router as emoji_captcha_router  # noqa
