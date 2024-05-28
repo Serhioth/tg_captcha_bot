@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     bot_drop_pending_updates: bool = 1
     bot_request_timeout: int = 30
     bot_parse_mode: str = 'html'
+    bot_superadmins: list[int] = []
 
     redis_host: str
     redis_port: int

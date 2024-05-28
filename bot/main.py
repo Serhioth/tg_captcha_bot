@@ -2,13 +2,18 @@ from contextlib import asynccontextmanager
 from datetime import datetime as dt
 
 from aiogram import types
+from aiogram_dialog import setup_dialogs
 from fastapi import FastAPI
 import uvicorn
 
 from bot.core.config import bot, settings, webhook_path, webhook_url
 from bot.core.configure_logging import logger
-from bot.handlers.chat_member import chat_member_router
-from bot.handlers.service import service_router
+from bot.handlers import (
+    chat_member_router,
+    service_router,
+    commands_router,
+    statistics_dialog,
+)
 
 
 DATETIME_FORMAT = '%Y/%m/%d %H:%M:%S'
@@ -33,7 +38,10 @@ async def lifespan(app: FastAPI):
     settings.dp.include_routers(
         chat_member_router,
         service_router,
+        commands_router,
+        statistics_dialog,
     )
+    setup_dialogs(settings.dp)
     logger.info(f'Диспетчер запущен в {now}.')
 
     yield

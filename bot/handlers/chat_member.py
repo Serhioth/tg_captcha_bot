@@ -13,7 +13,7 @@ from aiogram.exceptions import TelegramAPIError
 from bot.callbacks.callback_fabs import CaptchaCallback
 from bot.core.config import settings
 from bot.core.configure_logging import logger
-from bot.FSM_states.user_join_states import UserJoinStates
+from bot.states.user_join_states import UserJoinStates
 from bot.keyboards.captcha.captcha_keyboard_fabs import CaptchaFactory
 from bot.keyboards.captcha.keyboards import ImageCaptcha
 from bot.translations.ru.user_join_messages import (
@@ -24,6 +24,10 @@ from bot.utils.handlers import (
     check_user_attempts_is_over,
     protect_username,
     reset_user_attempts_number
+)
+from bot.utils.repositories import (
+    increment_daily_failed_captcha_messages,
+    increment_daily_passed_captcha_messages
 )
 
 
@@ -45,6 +49,7 @@ async def on_user_join(
 
     if attempts_is_over:
         await state.set_state(UserJoinStates.attempts_limit_reached)
+        await increment_daily_failed_captcha_messages()
         await ban_user(
             bot=event.bot,
             chat_id=event.chat.id,
@@ -167,7 +172,7 @@ async def process_user_answer(
             permissions=settings.unrestricted_permissions,
             use_independent_chat_permissions=True
         )
-
+        await increment_daily_passed_captcha_messages()
         logger.info(
             f'Заявка пользователя {user_full_name} одобрена.'
         )
@@ -185,6 +190,7 @@ async def process_user_answer(
 
         await callback.message.delete()
 
+        await increment_daily_failed_captcha_messages()
         await ban_user(
             bot=callback.bot,
             state=state,
@@ -205,7 +211,6 @@ async def process_user_timeout(
     await asyncio.sleep(settings.captcha_answer_timeout)
 
     current_state = await state.get_state()
-    print(current_state)
 
     if current_state == UserJoinStates.waiting_for_answer:
         user_full_name = protect_username(
@@ -220,6 +225,7 @@ async def process_user_timeout(
 
         try:
             await message.delete()
+            await increment_daily_failed_captcha_messages()
 
             await ban_user(
                 bot=event.bot,
